@@ -139,6 +139,7 @@ export function ChatLayout() {
       currentConversationId,
       {
         onToken: (token) => {
+
           console.log("[v0] Token received:", token.slice(0, 50));
           setStreamingContent((prev) => prev + token);
         },
@@ -211,10 +212,12 @@ export function ChatLayout() {
         maxTokens: settings.maxTokens,
         title: !currentConversationId ? deriveTitle(content) : undefined,
         enableCodeExecution: true,
-        fileIds,
-      }
+      fileIds,
+      },
+      controller.signal
     );
   };
+
 
   const handleStop = () => {
     abortController?.abort();

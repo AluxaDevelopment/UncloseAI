@@ -36,8 +36,9 @@ export interface FileAttachment {
   mime_type: string;
   file_size_bytes: number;
   fetch_url: string;
-  source_type: "user_upload" | "sandbox";
+  source_type: "user_upload" | "sandbox_output";
 }
+
 
 export interface ToolCall {
   type: "tool_call";
@@ -231,9 +232,21 @@ class ApiClient {
     return res.json();
   }
 
+  /**
+   * @deprecated Prefer using `attachment.fetch_url` returned by the backend.
+   */
   getFileUrl(filename: string, type: "uploads" | "sandbox" = "uploads"): string {
     return `${BASE_URL}/files/${type}/${filename}`;
   }
+
+  async getConversationFiles(
+    conversationId: string
+  ): Promise<FileAttachment[]> {
+    return this.request<FileAttachment[]>(
+      `/files/conversation/${conversationId}`
+    );
+  }
+
 
   // Sandbox
   async executeSandbox(

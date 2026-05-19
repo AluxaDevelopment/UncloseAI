@@ -23,8 +23,10 @@ export async function streamChat(
   message: string,
   conversationId: string | null,
   callbacks: StreamCallbacks,
-  options: ChatOptions = {}
+  options: ChatOptions = {},
+  signal?: AbortSignal
 ) {
+
   const token =
     typeof window !== "undefined"
       ? localStorage.getItem("access_token")
@@ -52,6 +54,7 @@ export async function streamChat(
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
+      signal,
       body: JSON.stringify({
         message,
         conversation_id: conversationId,
@@ -64,6 +67,7 @@ export async function streamChat(
         file_ids: fileIds,
       }),
     });
+
 
     console.log("[v0] Chat response status:", response.status, response.ok);
 
