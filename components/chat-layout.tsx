@@ -144,12 +144,17 @@ export function ChatLayout() {
         onToolCall: (tc) => {
           setToolCalls((prev) => [...prev, tc]);
         },
-        onDone: async (fullText) => {
+        onDone: async (fullText, serverConversationId) => {
           setIsStreaming(false);
           setAbortController(null);
+
+          // Resolve the real conversation ID — either the one the server
+          // returned in the stream, or the one we already had.
+          const resolvedId = serverConversationId || currentConversationId || null;
+
           const assistantMessage: Message = {
             id: `temp-assistant-${Date.now()}`,
-            conversation_id: currentConversationId || "",
+            conversation_id: resolvedId || "",
             user_id: "",
             role: "assistant",
             content: fullText,
@@ -160,15 +165,19 @@ export function ChatLayout() {
           setStreamingContent("");
           setToolCalls([]);
 
+          // If the server gave us a brand-new conversation ID, select it now
+          // so the sidebar highlights the right item and subsequent messages
+          // are sent to the correct thread.
+          if (serverConversationId && !currentConversationId) {
+            setCurrentConversationId(serverConversationId);
+          }
+
           const convs = await api.listConversations();
           setConversations(convs);
 
-          if (!currentConversationId) {
-            if (convs.length > 0) {
-              setCurrentConversationId(convs[0].id);
-            }
-          } else {
-            const existing = convs.find((c) => c.id === currentConversationId);
+          // Auto-rename if the conversation still has a generic title
+          if (resolvedId) {
+            const existing = convs.find((c) => c.id === resolvedId);
             if (
               existing &&
               (existing.title === "New Chat" ||
@@ -176,10 +185,10 @@ export function ChatLayout() {
                 existing.title === "")
             ) {
               const newTitle = deriveTitle(content);
-              await api.renameConversation(currentConversationId, newTitle);
+              await api.renameConversation(resolvedId, newTitle);
               setConversations((prev) =>
                 prev.map((c) =>
-                  c.id === currentConversationId ? { ...c, title: newTitle } : c
+                  c.id === resolvedId ? { ...c, title: newTitle } : c
                 )
               );
             }
