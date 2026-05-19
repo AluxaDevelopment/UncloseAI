@@ -174,7 +174,7 @@ export function ConversationSidebar({
           ) : (
             groupedConversations.map((group) => (
               <div key={group.label} className="mb-3">
-                <p className="px-2 py-1 text-[10px] font-semibold text-sidebar-muted uppercase tracking-widest">
+                <p className="px-2.5 pt-2 pb-1 text-[10px] font-medium text-sidebar-muted uppercase tracking-[0.1em]">
                   {group.label}
                 </p>
                 {group.conversations.map((conversation) => (
@@ -204,14 +204,14 @@ export function ConversationSidebar({
         <div className="border-t border-sidebar-border px-2 py-2 shrink-0 flex flex-col gap-0.5">
           <button
             onClick={() => setSettingsOpen(true)}
-            className="flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors w-full text-left"
+            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors w-full text-left group"
           >
-            <Settings className="h-3.5 w-3.5 shrink-0" />
+            <Settings className="h-3.5 w-3.5 shrink-0 transition-transform group-hover:rotate-45 duration-300" />
             Settings
           </button>
           <button
             onClick={handleSignOut}
-            className="flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors w-full text-left"
+            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-sidebar-muted hover:text-red-400 hover:bg-sidebar-accent transition-colors w-full text-left"
           >
             <LogOut className="h-3.5 w-3.5 shrink-0" />
             Sign out
@@ -311,10 +311,10 @@ function ConversationItem({
   return (
     <div
       className={cn(
-        "group flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors",
+        "group flex items-center gap-2 px-2.5 py-1.5 rounded-lg cursor-pointer transition-all duration-100",
         isActive
-          ? "bg-sidebar-accent text-sidebar-foreground"
-          : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+          ? "bg-sidebar-accent text-sidebar-foreground font-medium"
+          : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
       )}
       onClick={onSelect}
     >

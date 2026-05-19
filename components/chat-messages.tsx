@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Message } from '@/lib/api'
 import { cn } from '@/lib/utils'
-import { Copy, Check } from 'lucide-react'
+import { Copy, Check, RefreshCw } from 'lucide-react'
 
 interface ChatMessagesProps {
   messages: Message[]
@@ -24,130 +24,146 @@ export function ChatMessages({
 
   if (messages.length === 0 && !isStreaming) {
     return (
-      <div className="flex-1 flex items-center justify-center px-6">
-        <div className="text-center max-w-sm">
-          <h2 className="text-[22px] font-semibold text-foreground tracking-tight mb-1.5">
-            What can I help with?
-          </h2>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Start a new conversation below.
-          </p>
-        </div>
+      <div className="flex-1 flex flex-col items-center justify-center px-6 select-none">
+        <p className="text-[28px] font-semibold tracking-tight text-foreground/90 text-balance text-center">
+          What&apos;s on your mind?
+        </p>
+        <p className="mt-2 text-sm text-muted-foreground text-center">
+          Start typing below to begin a conversation.
+        </p>
       </div>
     )
   }
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-        {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} />
+      <div className="max-w-3xl mx-auto px-6 py-10 flex flex-col gap-8">
+        {messages.map((message, i) => (
+          <MessageBubble key={message.id} message={message} index={i} />
         ))}
 
+        {/* Streaming assistant bubble */}
         {isStreaming && streamingContent && (
           <div className="flex justify-start">
-            <div className="max-w-[65%] bg-card border border-border rounded-lg px-4 py-3">
-              <div className="text-sm text-foreground leading-relaxed">
+            <div className="max-w-[72%] group">
+              <div className="rounded-2xl rounded-tl-sm bg-card border border-border px-4 py-3 text-sm text-foreground leading-relaxed">
                 <MessageContent content={streamingContent} />
               </div>
             </div>
           </div>
         )}
 
+        {/* Thinking dots */}
         {isStreaming && !streamingContent && (
           <div className="flex justify-start">
-            <div className="bg-card border border-border rounded-lg px-4 py-3">
+            <div className="bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3.5">
               <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-pulse" />
-                <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-pulse [animation-delay:150ms]" />
-                <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-pulse [animation-delay:300ms]" />
+                <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:0ms]" />
+                <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:150ms]" />
+                <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:300ms]" />
               </div>
             </div>
           </div>
         )}
+
         <div ref={messagesEndRef} />
       </div>
     </div>
   )
 }
 
-function MessageBubble({ message }: { message: Message }) {
+function MessageBubble({ message, index }: { message: Message; index: number }) {
   const isUser = message.role === 'user'
 
-  return (
-    <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
-      <div
-        className={cn(
-          'max-w-[65%] rounded-lg px-4 py-3 text-sm leading-relaxed',
-          isUser
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-card text-foreground border border-border'
-        )}
-      >
-        {isUser ? (
-          <p className="whitespace-pre-wrap break-words">{message.content}</p>
-        ) : (
-          <div className="space-y-3">
-            <MessageContent content={message.content} />
-            <div className="flex items-center gap-1 opacity-0 hover:opacity-100 transition-opacity">
-              <CopyButton text={message.content} />
-            </div>
+  if (isUser) {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[72%]">
+          <div className="rounded-2xl rounded-tr-sm bg-primary text-primary-foreground px-4 py-3 text-sm leading-relaxed">
+            <p className="whitespace-pre-wrap break-words">{message.content}</p>
           </div>
-        )}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex justify-start">
+      <div className="max-w-[72%] group flex flex-col gap-1.5">
+        <div className="rounded-2xl rounded-tl-sm bg-card border border-border px-4 py-3 text-sm text-foreground leading-relaxed">
+          <MessageContent content={message.content} />
+        </div>
+        {/* Action row under assistant messages */}
+        <div className="flex items-center gap-1 pl-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+          <CopyButton text={message.content} />
+        </div>
       </div>
     </div>
   )
 }
 
 function MessageContent({ content }: { content: string }) {
+  // Split on fenced code blocks
   const parts = content.split(/(```[\s\S]*?```)/g)
 
   return (
     <div className="space-y-3">
-      {parts.map((part, index) => {
+      {parts.map((part, i) => {
         if (part.startsWith('```') && part.endsWith('```')) {
-          const lines = part.slice(3, -3).split('\n')
-          const language = lines[0]?.trim() || ''
-          const code = lines.slice(language ? 1 : 0).join('\n')
+          const inner = part.slice(3, -3)
+          const newline = inner.indexOf('\n')
+          const language = newline !== -1 ? inner.slice(0, newline).trim() : ''
+          const code = newline !== -1 ? inner.slice(newline + 1) : inner
+
           return (
-            <div key={index} className="relative group/code">
-              <div className="rounded-lg overflow-hidden border border-border bg-secondary">
-                {language && (
-                  <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-secondary/50">
-                    <span className="text-[11px] font-mono text-muted-foreground">
-                      {language}
-                    </span>
-                    <CopyButton text={code} label="Copy" />
-                  </div>
-                )}
-                <pre className="p-4 overflow-x-auto">
-                  <code className="text-xs font-mono text-foreground/80 leading-relaxed">
-                    {code}
-                  </code>
-                </pre>
+            <div key={i} className="rounded-xl overflow-hidden border border-border">
+              {/* Code header */}
+              <div className="flex items-center justify-between px-4 py-2 bg-secondary/70 border-b border-border">
+                <span className="text-[11px] font-mono text-muted-foreground">
+                  {language || 'plaintext'}
+                </span>
+                <CopyButton text={code} label="Copy" />
               </div>
+              <pre className="overflow-x-auto bg-secondary/30 p-4">
+                <code className="text-[12px] font-mono text-foreground/80 leading-relaxed">
+                  {code}
+                </code>
+              </pre>
             </div>
           )
         }
-        return (
-          <span key={index} className="whitespace-pre-wrap break-words">
-            {part}
-          </span>
-        )
+
+        // Inline: bold **text**, inline code `code`
+        return <InlineText key={i} text={part} />
       })}
     </div>
   )
 }
 
-function CopyButton({
-  text,
-  label,
-  className,
-}: {
-  text: string
-  label?: string
-  className?: string
-}) {
+function InlineText({ text }: { text: string }) {
+  // Split on inline code ticks and bold markers
+  const segments = text.split(/(`[^`]+`|\*\*[^*]+\*\*)/g)
+
+  return (
+    <span className="whitespace-pre-wrap break-words">
+      {segments.map((seg, i) => {
+        if (seg.startsWith('`') && seg.endsWith('`')) {
+          return (
+            <code key={i} className="text-[12px] font-mono bg-secondary px-1.5 py-0.5 rounded text-foreground/80">
+              {seg.slice(1, -1)}
+            </code>
+          )
+        }
+        if (seg.startsWith('**') && seg.endsWith('**')) {
+          return <strong key={i} className="font-semibold">{seg.slice(2, -2)}</strong>
+        }
+        return <span key={i}>{seg}</span>
+      })}
+    </span>
+  )
+}
+
+function CopyButton({ text, label }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
@@ -159,10 +175,7 @@ function CopyButton({
   return (
     <button
       onClick={handleCopy}
-      className={cn(
-        'flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors',
-        className
-      )}
+      className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
     >
       {copied ? (
         <>

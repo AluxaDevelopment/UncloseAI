@@ -18,31 +18,25 @@ export function ChatLayout() {
   const { settings } = useSettings();
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [currentConversationId, setCurrentConversationId] = useState<
-    string | null
-  >(null);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [streamingContent, setStreamingContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [model, setModel] = useState<Model>(settings.defaultModel as Model);
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [abortController, setAbortController] =
-    useState<AbortController | null>(null);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
 
-  // Update model when settings change
   useEffect(() => {
     setModel(settings.defaultModel as Model);
   }, [settings.defaultModel]);
 
-  // Redirect to signin if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push("/signin");
     }
   }, [authLoading, isAuthenticated, router]);
 
-  // Load conversations
   const loadConversations = useCallback(async () => {
     if (!isAuthenticated) return;
     try {
@@ -57,7 +51,6 @@ export function ChatLayout() {
     loadConversations();
   }, [loadConversations]);
 
-  // Load conversation messages
   const loadConversation = useCallback(async (conversationId: string) => {
     setIsLoadingConversation(true);
     try {
@@ -88,7 +81,6 @@ export function ChatLayout() {
   };
 
   const handleSendMessage = async (content: string) => {
-    // Optimistically add user message
     const tempUserMessage: Message = {
       id: `temp-${Date.now()}`,
       conversation_id: currentConversationId || "",
@@ -105,48 +97,44 @@ export function ChatLayout() {
     const controller = new AbortController();
     setAbortController(controller);
 
-    await streamChat(content, currentConversationId, {
-      onToken: (token) => {
-        setStreamingContent((prev) => prev + token);
-      },
-      onDone: async (fullText) => {
-        setIsStreaming(false);
-        setAbortController(null);
-
-        // Add assistant message
-        const assistantMessage: Message = {
-          id: `temp-assistant-${Date.now()}`,
-          conversation_id: currentConversationId || "",
-          user_id: "",
-          role: "assistant",
-          content: fullText,
-          model,
-          created_at: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
-        setStreamingContent("");
-
-        // Refresh conversations to get new/updated conversation
-        await loadConversations();
-
-        // If this was a new conversation, select the latest one
-        if (!currentConversationId) {
-          const convs = await api.listConversations();
-          if (convs.length > 0) {
-            setCurrentConversationId(convs[0].id);
+    await streamChat(
+      content,
+      currentConversationId,
+      {
+        onToken: (token) => {
+          setStreamingContent((prev) => prev + token);
+        },
+        onDone: async (fullText) => {
+          setIsStreaming(false);
+          setAbortController(null);
+          const assistantMessage: Message = {
+            id: `temp-assistant-${Date.now()}`,
+            conversation_id: currentConversationId || "",
+            user_id: "",
+            role: "assistant",
+            content: fullText,
+            model,
+            created_at: new Date().toISOString(),
+          };
+          setMessages((prev) => [...prev, assistantMessage]);
+          setStreamingContent("");
+          await loadConversations();
+          if (!currentConversationId) {
+            const convs = await api.listConversations();
+            if (convs.length > 0) {
+              setCurrentConversationId(convs[0].id);
+            }
           }
-        }
+        },
+        onError: (error) => {
+          console.error("[v0] Chat error:", error);
+          setIsStreaming(false);
+          setAbortController(null);
+          setMessages((prev) => prev.filter((m) => m.id !== tempUserMessage.id));
+        },
       },
-      onError: (error) => {
-        console.error("[v0] Chat error:", error);
-        setIsStreaming(false);
-        setAbortController(null);
-        // Remove the temp user message on error
-        setMessages((prev) =>
-          prev.filter((m) => m.id !== tempUserMessage.id)
-        );
-      },
-    }, { model, temperature: settings.temperature, maxTokens: settings.maxTokens });
+      { model, temperature: settings.temperature, maxTokens: settings.maxTokens }
+    );
   };
 
   const handleStop = () => {
@@ -158,39 +146,44 @@ export function ChatLayout() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
-  if (!isAuthenticated) {
-    return null;
-  }
+  if (!isAuthenticated) return null;
+
+  const currentTitle = currentConversationId
+    ? conversations.find((c) => c.id === currentConversationId)?.title
+    : null;
 
   return (
-    <div className="h-screen flex bg-background">
+    <div className="h-screen flex bg-background overflow-hidden">
       <ConversationSidebar
         conversations={conversations}
         currentConversationId={currentConversationId}
         onSelectConversation={handleSelectConversation}
         onConversationsChange={loadConversations}
         isCollapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="flex items-center justify-between px-4 h-12 border-b border-border shrink-0">
+        {/* Header */}
+        <header className="flex items-center justify-between px-5 h-12 border-b border-border shrink-0 bg-background/80 backdrop-blur-sm">
           <ModelSelector value={model} onChange={setModel} />
-          <p className="text-[13px] text-muted-foreground truncate max-w-xs">
-            {currentConversationId
-              ? conversations.find((c) => c.id === currentConversationId)?.title
-              : "New conversation"}
-          </p>
+          {currentTitle && (
+            <p className="text-[13px] text-muted-foreground truncate max-w-xs font-medium">
+              {currentTitle}
+            </p>
+          )}
+          <div className="w-24" /> {/* balance the model selector width */}
         </header>
 
+        {/* Messages */}
         {isLoadingConversation ? (
           <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : (
           <ChatMessages
@@ -200,6 +193,7 @@ export function ChatLayout() {
           />
         )}
 
+        {/* Input */}
         <ChatInput
           onSend={handleSendMessage}
           onStop={handleStop}
