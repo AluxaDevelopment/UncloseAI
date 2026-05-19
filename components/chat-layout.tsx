@@ -80,6 +80,12 @@ export function ChatLayout() {
     setIsStreaming(false);
   };
 
+  const deriveTitle = (text: string): string => {
+    const words = text.trim().split(/\s+/);
+    const snippet = words.slice(0, 6).join(" ");
+    return snippet.length < text.trim().length ? snippet + "…" : snippet;
+  };
+
   const handleSendMessage = async (content: string) => {
     const tempUserMessage: Message = {
       id: `temp-${Date.now()}`,
@@ -118,11 +124,30 @@ export function ChatLayout() {
           };
           setMessages((prev) => [...prev, assistantMessage]);
           setStreamingContent("");
-          await loadConversations();
+          const convs = await api.listConversations();
+          setConversations(convs);
+
           if (!currentConversationId) {
-            const convs = await api.listConversations();
+            // Select the newly created conversation
             if (convs.length > 0) {
               setCurrentConversationId(convs[0].id);
+            }
+          } else {
+            // If the existing conversation still had the generic title, rename it
+            const existing = convs.find((c) => c.id === currentConversationId);
+            if (
+              existing &&
+              (existing.title === "New Chat" ||
+                existing.title === "New conversation" ||
+                existing.title === "")
+            ) {
+              const newTitle = deriveTitle(content);
+              await api.renameConversation(currentConversationId, newTitle);
+              setConversations((prev) =>
+                prev.map((c) =>
+                  c.id === currentConversationId ? { ...c, title: newTitle } : c
+                )
+              );
             }
           }
         },
@@ -133,7 +158,12 @@ export function ChatLayout() {
           setMessages((prev) => prev.filter((m) => m.id !== tempUserMessage.id));
         },
       },
-      { model, temperature: settings.temperature, maxTokens: settings.maxTokens }
+      {
+        model,
+        temperature: settings.temperature,
+        maxTokens: settings.maxTokens,
+        title: !currentConversationId ? deriveTitle(content) : undefined,
+      }
     );
   };
 
