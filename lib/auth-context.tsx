@@ -47,9 +47,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    await api.signOut();
-    setIsAuthenticated(false);
-    setUserId(null);
+    try {
+      await api.signOut();
+    } catch (error) {
+      console.error("[v0] Sign out error:", error);
+    } finally {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user_id");
+      setIsAuthenticated(false);
+      setUserId(null);
+    }
   }, []);
 
   return (
