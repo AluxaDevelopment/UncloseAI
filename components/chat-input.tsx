@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, StopCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { ArrowUp, Square } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -26,7 +25,7 @@ export function ChatInput({
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = `${Math.min(
         textareaRef.current.scrollHeight,
-        200
+        180
       )}px`;
     }
   }, [message]);
@@ -46,48 +45,59 @@ export function ChatInput({
     }
   };
 
+  const canSend = message.trim().length > 0 && !isLoading && !disabled;
+
   return (
-    <div className="border-t border-border bg-background">
-      <form
-        onSubmit={handleSubmit}
-        className="max-w-3xl mx-auto px-4 py-4"
-      >
-        <div className="relative flex items-end gap-2 bg-card border border-border rounded-xl p-2">
-          <Textarea
+    <div className="px-4 pb-5 pt-3">
+      <div className="max-w-2xl mx-auto">
+        <div
+          className={cn(
+            "relative bg-card border rounded-xl transition-colors",
+            disabled ? "border-border/40 opacity-60" : "border-border hover:border-border/80"
+          )}
+        >
+          <textarea
             ref={textareaRef}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Message UncloseAI..."
+            placeholder="Message..."
             disabled={disabled}
-            className="flex-1 min-h-[44px] max-h-[200px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 py-3 px-2"
             rows={1}
+            className="w-full resize-none bg-transparent px-4 pt-3.5 pb-3 pr-12 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none min-h-[52px] max-h-[180px] leading-relaxed"
           />
-          {isLoading ? (
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              onClick={onStop}
-              className="h-10 w-10 shrink-0"
-            >
-              <StopCircle className="h-5 w-5" />
-            </Button>
-          ) : (
-            <Button
-              type="submit"
-              size="icon"
-              disabled={!message.trim() || disabled}
-              className="h-10 w-10 shrink-0"
-            >
-              <Send className="h-5 w-5" />
-            </Button>
-          )}
+          <div className="absolute right-2.5 bottom-2.5">
+            {isLoading ? (
+              <button
+                type="button"
+                onClick={onStop}
+                className="w-7 h-7 flex items-center justify-center rounded-md bg-foreground/10 hover:bg-foreground/20 text-foreground transition-colors"
+                aria-label="Stop generating"
+              >
+                <Square className="h-3 w-3 fill-current" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleSubmit()}
+                disabled={!canSend}
+                className={cn(
+                  "w-7 h-7 flex items-center justify-center rounded-md transition-colors",
+                  canSend
+                    ? "bg-foreground text-background hover:bg-foreground/90"
+                    : "bg-muted text-muted-foreground cursor-not-allowed"
+                )}
+                aria-label="Send message"
+              >
+                <ArrowUp className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         </div>
-        <p className="text-xs text-muted-foreground text-center mt-2">
-          UncloseAI can make mistakes. Consider checking important information.
+        <p className="text-[11px] text-muted-foreground/50 text-center mt-2.5">
+          Responses may be inaccurate. Verify important information.
         </p>
-      </form>
+      </div>
     </div>
   );
 }

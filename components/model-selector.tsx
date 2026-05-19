@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   Select,
   SelectContent,
@@ -18,43 +17,44 @@ interface ModelSelectorProps {
   className?: string;
 }
 
-const models: { value: Model; label: string; description: string }[] = [
-  {
-    value: "hermes",
-    label: "Hermes",
-    description: "Fast, general purpose",
-  },
-  {
-    value: "qwen",
-    label: "Qwen Coder",
-    description: "Better at code",
-  },
+const models: { value: Model; label: string; tag: string }[] = [
+  { value: "hermes", label: "Hermes", tag: "General" },
+  { value: "qwen", label: "Qwen Coder", tag: "Code" },
 ];
 
-export function ModelSelector({
-  value,
-  onChange,
-  className,
-}: ModelSelectorProps) {
+export function ModelSelector({ value, onChange, className }: ModelSelectorProps) {
+  const current = models.find((m) => m.value === value);
+
   return (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger
         className={cn(
-          "w-[140px] bg-transparent border-0 hover:bg-accent focus:ring-0",
+          "h-7 gap-1.5 bg-transparent border-0 hover:bg-accent focus:ring-0 text-[13px] font-medium text-foreground px-2 w-auto",
           className
         )}
       >
-        <SelectValue />
+        <SelectValue>
+          <span className="flex items-center gap-2">
+            {current?.label}
+            <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+              {current?.tag}
+            </span>
+          </span>
+        </SelectValue>
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className="bg-popover border-border">
         {models.map((model) => (
-          <SelectItem key={model.value} value={model.value}>
-            <div className="flex flex-col">
-              <span>{model.label}</span>
-              <span className="text-xs text-muted-foreground">
-                {model.description}
+          <SelectItem
+            key={model.value}
+            value={model.value}
+            className="text-sm cursor-pointer"
+          >
+            <span className="flex items-center gap-2">
+              {model.label}
+              <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                {model.tag}
               </span>
-            </div>
+            </span>
           </SelectItem>
         ))}
       </SelectContent>

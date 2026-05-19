@@ -172,13 +172,13 @@ export function ChatLayout() {
       />
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <header className="flex items-center justify-between px-4 h-12 border-b border-border shrink-0">
           <ModelSelector value={model} onChange={setModel} />
-          <div className="text-sm text-muted-foreground">
+          <p className="text-[13px] text-muted-foreground truncate max-w-xs">
             {currentConversationId
               ? conversations.find((c) => c.id === currentConversationId)?.title
-              : "New chat"}
-          </div>
+              : "New conversation"}
+          </p>
         </header>
 
         {isLoadingConversation ? (

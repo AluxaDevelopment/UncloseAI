@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from "react";
 import { Message } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Copy, Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 interface ChatMessagesProps {
   messages: Message[];
@@ -25,13 +24,13 @@ export function ChatMessages({
 
   if (messages.length === 0 && !isStreaming) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center max-w-md px-4">
-          <h2 className="text-2xl font-semibold text-foreground mb-2">
-            How can I help you today?
+      <div className="flex-1 flex items-center justify-center px-6">
+        <div className="text-center max-w-sm">
+          <h2 className="text-[22px] font-semibold text-foreground tracking-tight mb-1.5">
+            What can I help with?
           </h2>
-          <p className="text-muted-foreground text-sm">
-            Start a conversation by typing a message below
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Start a new conversation below.
           </p>
         </div>
       </div>
@@ -40,31 +39,31 @@ export function ChatMessages({
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
         {messages.map((message) => (
           <MessageBubble key={message.id} message={message} />
         ))}
+
         {isStreaming && streamingContent && (
-          <div className="flex gap-4">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-              <span className="text-xs font-medium text-primary">AI</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="prose prose-invert prose-sm max-w-none">
-                <MessageContent content={streamingContent} />
-              </div>
+          <div className="space-y-1">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
+              Assistant
+            </p>
+            <div className="text-sm text-foreground leading-relaxed">
+              <MessageContent content={streamingContent} />
             </div>
           </div>
         )}
+
         {isStreaming && !streamingContent && (
-          <div className="flex gap-4">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-              <span className="text-xs font-medium text-primary">AI</span>
-            </div>
-            <div className="flex items-center gap-1 py-2">
-              <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-pulse" />
-              <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-pulse [animation-delay:150ms]" />
-              <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-pulse [animation-delay:300ms]" />
+          <div className="space-y-1">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
+              Assistant
+            </p>
+            <div className="flex items-center gap-1.5 py-1">
+              <span className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-pulse" />
+              <span className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-pulse [animation-delay:150ms]" />
+              <span className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-pulse [animation-delay:300ms]" />
             </div>
           </div>
         )}
@@ -78,69 +77,58 @@ function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === "user";
 
   return (
-    <div className={cn("flex gap-4", isUser && "flex-row-reverse")}>
+    <div className="space-y-1">
+      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
+        {isUser ? "You" : "Assistant"}
+      </p>
       <div
         className={cn(
-          "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
-          isUser ? "bg-primary text-primary-foreground" : "bg-primary/10"
+          "text-sm leading-relaxed",
+          isUser ? "text-foreground" : "text-foreground/90"
         )}
       >
-        <span className="text-xs font-medium">
-          {isUser ? "You" : "AI"}
-        </span>
-      </div>
-      <div
-        className={cn(
-          "flex-1 min-w-0",
-          isUser && "flex justify-end"
-        )}
-      >
-        <div
-          className={cn(
-            "inline-block max-w-full",
-            isUser
-              ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-md px-4 py-2"
-              : ""
-          )}
-        >
-          {isUser ? (
-            <p className="whitespace-pre-wrap break-words">{message.content}</p>
-          ) : (
-            <div className="prose prose-invert prose-sm max-w-none">
-              <MessageContent content={message.content} />
+        {isUser ? (
+          <p className="whitespace-pre-wrap break-words">{message.content}</p>
+        ) : (
+          <div className="relative group">
+            <MessageContent content={message.content} />
+            <div className="mt-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <CopyButton text={message.content} />
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 function MessageContent({ content }: { content: string }) {
-  // Simple markdown-like rendering for code blocks
   const parts = content.split(/(```[\s\S]*?```)/g);
 
   return (
-    <>
+    <div className="space-y-3">
       {parts.map((part, index) => {
         if (part.startsWith("```") && part.endsWith("```")) {
           const lines = part.slice(3, -3).split("\n");
           const language = lines[0]?.trim() || "";
           const code = lines.slice(language ? 1 : 0).join("\n");
           return (
-            <div key={index} className="relative group my-4">
-              <div className="bg-card rounded-lg overflow-hidden border border-border">
+            <div key={index} className="relative group/code">
+              <div className="rounded-lg overflow-hidden border border-border bg-card">
                 {language && (
-                  <div className="px-4 py-2 bg-muted/50 border-b border-border text-xs text-muted-foreground">
-                    {language}
+                  <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30">
+                    <span className="text-[11px] font-mono text-muted-foreground">
+                      {language}
+                    </span>
+                    <CopyButton text={code} label="Copy" />
                   </div>
                 )}
                 <pre className="p-4 overflow-x-auto">
-                  <code className="text-sm font-mono">{code}</code>
+                  <code className="text-xs font-mono text-foreground/80 leading-relaxed">
+                    {code}
+                  </code>
                 </pre>
               </div>
-              <CopyButton text={code} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           );
         }
@@ -150,11 +138,19 @@ function MessageContent({ content }: { content: string }) {
           </span>
         );
       })}
-    </>
+    </div>
   );
 }
 
-function CopyButton({ text, className }: { text: string; className?: string }) {
+function CopyButton({
+  text,
+  label,
+  className,
+}: {
+  text: string;
+  label?: string;
+  className?: string;
+}) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -164,17 +160,24 @@ function CopyButton({ text, className }: { text: string; className?: string }) {
   };
 
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className={cn("h-8 w-8", className)}
+    <button
       onClick={handleCopy}
+      className={cn(
+        "flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors",
+        className
+      )}
     >
       {copied ? (
-        <Check className="h-4 w-4 text-primary" />
+        <>
+          <Check className="h-3 w-3" />
+          {label && <span>Copied</span>}
+        </>
       ) : (
-        <Copy className="h-4 w-4 text-muted-foreground" />
+        <>
+          <Copy className="h-3 w-3" />
+          {label && <span>{label}</span>}
+        </>
       )}
-    </Button>
+    </button>
   );
 }

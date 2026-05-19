@@ -21,7 +21,6 @@ function SignInForm() {
     e.preventDefault();
     setError("");
     setIsLoading(true);
-
     try {
       await signIn(email, password);
       router.push("/");
@@ -34,38 +33,40 @@ function SignInForm() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="flex items-center justify-between px-6 py-4 border-b border-border">
-        <Link href="/" className="text-xl font-semibold text-foreground">
+      <header className="flex items-center justify-between px-6 h-14 border-b border-border">
+        <Link href="/" className="text-[15px] font-semibold text-foreground tracking-tight">
           UncloseAI
         </Link>
         <Link href="/signup">
-          <Button variant="outline" size="sm">
-            Sign up
+          <Button variant="outline" size="sm" className="text-xs h-8">
+            Create account
           </Button>
         </Link>
       </header>
 
       <main className="flex-1 flex items-center justify-center px-4">
-        <div className="w-full max-w-sm">
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-semibold text-foreground mb-2">
+        <div className="w-full max-w-[340px]">
+          <div className="mb-8">
+            <h1 className="text-[22px] font-semibold text-foreground tracking-tight mb-1">
               Welcome back
             </h1>
-            <p className="text-muted-foreground text-sm">
-              Sign in to continue to UncloseAI
+            <p className="text-sm text-muted-foreground">
+              Sign in to your account to continue.
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-                <AlertCircle className="h-4 w-4 shrink-0" />
+              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs">
+                <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 <span>{error}</span>
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+                Email
+              </Label>
               <Input
                 id="email"
                 type="email"
@@ -74,28 +75,34 @@ function SignInForm() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                className="bg-card"
+                className="bg-input border-border h-9 text-sm"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+                Password
+              </Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="bg-card"
+                className="bg-input border-border h-9 text-sm"
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full h-9 text-sm font-medium"
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />
                   Signing in...
                 </>
               ) : (
@@ -104,12 +111,9 @@ function SignInForm() {
             </Button>
           </form>
 
-          <p className="text-center text-sm text-muted-foreground mt-6">
+          <p className="text-center text-xs text-muted-foreground mt-6">
             {"Don't have an account? "}
-            <Link
-              href="/signup"
-              className="text-foreground hover:underline font-medium"
-            >
+            <Link href="/signup" className="text-foreground hover:underline font-medium">
               Sign up
             </Link>
           </p>
