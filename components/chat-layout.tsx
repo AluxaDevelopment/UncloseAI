@@ -139,12 +139,15 @@ export function ChatLayout() {
       currentConversationId,
       {
         onToken: (token) => {
+          console.log("[v0] Token received:", token.slice(0, 50));
           setStreamingContent((prev) => prev + token);
         },
         onToolCall: (tc) => {
+          console.log("[v0] Tool call in layout:", tc.tool);
           setToolCalls((prev) => [...prev, tc]);
         },
         onDone: async (fullText, serverConversationId) => {
+          console.log("[v0] onDone called, fullText length:", fullText.length, "serverConvId:", serverConversationId);
           setIsStreaming(false);
           setAbortController(null);
 
