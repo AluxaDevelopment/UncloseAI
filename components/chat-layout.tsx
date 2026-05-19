@@ -28,7 +28,6 @@ export function ChatLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
-  const [codeExecutionEnabled, setCodeExecutionEnabled] = useState(false);
 
   useEffect(() => {
     setModel(settings.defaultModel as Model);
@@ -199,7 +198,7 @@ export function ChatLayout() {
         temperature: settings.temperature,
         maxTokens: settings.maxTokens,
         title: !currentConversationId ? deriveTitle(content) : undefined,
-        enableCodeExecution: codeExecutionEnabled,
+        enableCodeExecution: true,
         fileIds,
       }
     );
@@ -239,21 +238,7 @@ export function ChatLayout() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="flex items-center justify-between px-5 h-12 border-b border-border shrink-0 bg-background/80 backdrop-blur-sm">
-          <div className="flex items-center gap-3">
-            <ModelSelector value={model} onChange={setModel} />
-            
-            {/* Code execution toggle */}
-            <button
-              onClick={() => setCodeExecutionEnabled(!codeExecutionEnabled)}
-              className={`text-[11px] font-medium px-2.5 py-1 rounded-lg transition-colors ${
-                codeExecutionEnabled
-                  ? "bg-green-500/10 text-green-500 border border-green-500/30"
-                  : "bg-secondary text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {codeExecutionEnabled ? "Sandbox On" : "Sandbox Off"}
-            </button>
-          </div>
+          <ModelSelector value={model} onChange={setModel} />
           
           {currentTitle && (
             <p className="text-[13px] text-muted-foreground truncate max-w-xs font-medium">
