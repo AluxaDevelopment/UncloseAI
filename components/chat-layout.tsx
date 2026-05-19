@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { api, Conversation, Message } from "@/lib/api";
 import { streamChat } from "@/lib/chat";
 import { useAuth } from "@/lib/auth-context";
+import { useSettings } from "@/lib/settings-context";
 import { ChatMessages } from "@/components/chat-messages";
 import { ChatInput } from "@/components/chat-input";
 import { ConversationSidebar } from "@/components/conversation-sidebar";
@@ -14,6 +15,7 @@ import { Loader2 } from "lucide-react";
 export function ChatLayout() {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { settings } = useSettings();
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -22,11 +24,16 @@ export function ChatLayout() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [streamingContent, setStreamingContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const [model, setModel] = useState<Model>("hermes");
+  const [model, setModel] = useState<Model>(settings.defaultModel as Model);
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [abortController, setAbortController] =
     useState<AbortController | null>(null);
+
+  // Update model when settings change
+  useEffect(() => {
+    setModel(settings.defaultModel as Model);
+  }, [settings.defaultModel]);
 
   // Redirect to signin if not authenticated
   useEffect(() => {
@@ -139,7 +146,7 @@ export function ChatLayout() {
           prev.filter((m) => m.id !== tempUserMessage.id)
         );
       },
-    }, { model });
+    }, { model, temperature: settings.temperature, maxTokens: settings.maxTokens });
   };
 
   const handleStop = () => {

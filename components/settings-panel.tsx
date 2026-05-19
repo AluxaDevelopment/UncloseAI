@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
+import { useSettings } from "@/lib/settings-context";
+import { api } from "@/lib/api";
 import {
   Sheet,
   SheetContent,
@@ -130,10 +132,53 @@ function SettingRow({
 }
 
 function AccountSettings() {
-  const { userId } = useAuth();
+  const { userId, signOut } = useAuth();
   const [email, setEmail] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const handleUpdateEmail = async () => {
+    if (!email) return;
+    setLoading(true);
+    try {
+      setMessage({ type: "success", text: "Email would be updated via API" });
+      setEmail("");
+      setTimeout(() => setMessage(null), 3000);
+    } catch (error) {
+      setMessage({ type: "error", text: "Failed to update email" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!currentPassword || !newPassword) return;
+    setLoading(true);
+    try {
+      setMessage({ type: "success", text: "Password would be updated via API" });
+      setCurrentPassword("");
+      setNewPassword("");
+      setTimeout(() => setMessage(null), 3000);
+    } catch (error) {
+      setMessage({ type: "error", text: "Failed to update password" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!confirm("Are you sure? This cannot be undone.")) return;
+    setLoading(true);
+    try {
+      setMessage({ type: "success", text: "Account would be deleted via API" });
+    } catch (error) {
+      setMessage({ type: "error", text: "Failed to delete account" });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -171,7 +216,13 @@ function AccountSettings() {
               className="bg-input border-border"
             />
           </div>
-          <Button size="sm" variant="outline" className="text-xs">
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className="text-xs"
+            onClick={handleUpdateEmail}
+            disabled={!email || loading}
+          >
             Update email
           </Button>
         </div>
@@ -217,7 +268,13 @@ function AccountSettings() {
               className="bg-input border-border"
             />
           </div>
-          <Button size="sm" variant="outline" className="text-xs">
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className="text-xs"
+            onClick={handleUpdatePassword}
+            disabled={!currentPassword || !newPassword || loading}
+          >
             Update password
           </Button>
         </div>
@@ -230,7 +287,7 @@ function AccountSettings() {
           title="Danger zone"
           description="Irreversible actions. Proceed with caution."
         />
-        <div className="rounded-md border border-destructive/30 p-4 bg-destructive/5">
+        <div className="rounded-md border border-destructive/30 p-4 bg-destructive/5 space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-foreground">
@@ -244,20 +301,49 @@ function AccountSettings() {
               size="sm"
               variant="destructive"
               className="text-xs shrink-0"
+              onClick={handleDeleteAccount}
+              disabled={loading}
             >
               Delete account
             </Button>
           </div>
+          <div className="flex items-start justify-between gap-4 pt-2 border-t border-destructive/20">
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                Sign out
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Sign out from all devices.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs shrink-0"
+              onClick={signOut}
+            >
+              Sign out
+            </Button>
+          </div>
         </div>
       </div>
+
+      {message && (
+        <div className={cn(
+          "p-3 rounded-md text-sm",
+          message.type === "success"
+            ? "bg-green-500/10 text-green-700 border border-green-500/20"
+            : "bg-red-500/10 text-red-700 border border-red-500/20"
+        )}>
+          {message.text}
+        </div>
+      )}
     </div>
   );
 }
 
 function AppearanceSettings() {
-  const [theme, setTheme] = useState("dark");
-  const [fontSize, setFontSize] = useState("medium");
-  const [codeTheme, setCodeTheme] = useState("default");
+  const { settings, updateSetting } = useSettings();
 
   return (
     <div className="space-y-8">
@@ -270,10 +356,10 @@ function AppearanceSettings() {
           {(["light", "dark", "system"] as const).map((t) => (
             <button
               key={t}
-              onClick={() => setTheme(t)}
+              onClick={() => updateSetting("theme", t)}
               className={cn(
                 "relative rounded-lg border p-3 transition-colors text-left",
-                theme === t
+                settings.theme === t
                   ? "border-foreground/40 bg-accent"
                   : "border-border hover:border-border/80 hover:bg-accent/30"
               )}
@@ -291,7 +377,7 @@ function AppearanceSettings() {
               <p className="text-xs font-medium text-foreground capitalize">
                 {t}
               </p>
-              {theme === t && (
+              {settings.theme === t && (
                 <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-foreground" />
               )}
             </button>
@@ -308,7 +394,7 @@ function AppearanceSettings() {
             label="Font size"
             description="Controls the base font size across the interface."
           >
-            <Select value={fontSize} onValueChange={setFontSize}>
+            <Select value={settings.fontSize} onValueChange={(value) => updateSetting("fontSize", value as any)}>
               <SelectTrigger className="w-32 h-8 text-xs bg-input border-border">
                 <SelectValue />
               </SelectTrigger>
@@ -323,7 +409,7 @@ function AppearanceSettings() {
             label="Code block theme"
             description="Syntax highlighting style for code."
           >
-            <Select value={codeTheme} onValueChange={setCodeTheme}>
+            <Select value={settings.codeTheme} onValueChange={(value) => updateSetting("codeTheme", value as any)}>
               <SelectTrigger className="w-32 h-8 text-xs bg-input border-border">
                 <SelectValue />
               </SelectTrigger>
@@ -341,10 +427,7 @@ function AppearanceSettings() {
 }
 
 function ModelsSettings() {
-  const [defaultModel, setDefaultModel] = useState("hermes");
-  const [streamResponses, setStreamResponses] = useState(true);
-  const [temperature, setTemperature] = useState("0.7");
-  const [maxTokens, setMaxTokens] = useState("2048");
+  const { settings, updateSetting } = useSettings();
 
   return (
     <div className="space-y-8">
@@ -368,10 +451,10 @@ function ModelsSettings() {
           ].map((model) => (
             <button
               key={model.value}
-              onClick={() => setDefaultModel(model.value)}
+              onClick={() => updateSetting("defaultModel", model.value as any)}
               className={cn(
                 "w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-colors text-left",
-                defaultModel === model.value
+                settings.defaultModel === model.value
                   ? "border-foreground/30 bg-accent"
                   : "border-border hover:bg-accent/40"
               )}
@@ -384,7 +467,7 @@ function ModelsSettings() {
                   {model.description}
                 </p>
               </div>
-              {defaultModel === model.value && (
+              {settings.defaultModel === model.value && (
                 <div className="w-2 h-2 rounded-full bg-foreground shrink-0" />
               )}
             </button>
@@ -402,8 +485,8 @@ function ModelsSettings() {
             description="Show text as it is being generated."
           >
             <Switch
-              checked={streamResponses}
-              onCheckedChange={setStreamResponses}
+              checked={settings.streamResponses}
+              onCheckedChange={(value) => updateSetting("streamResponses", value)}
             />
           </SettingRow>
           <SettingRow
@@ -411,8 +494,11 @@ function ModelsSettings() {
             description="Controls randomness. Lower is more deterministic."
           >
             <Input
-              value={temperature}
-              onChange={(e) => setTemperature(e.target.value)}
+              value={settings.temperature}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                if (!isNaN(val)) updateSetting("temperature", val);
+              }}
               className="w-20 h-8 text-xs text-center bg-input border-border"
               type="number"
               min="0"
@@ -425,8 +511,11 @@ function ModelsSettings() {
             description="Maximum length of generated responses."
           >
             <Input
-              value={maxTokens}
-              onChange={(e) => setMaxTokens(e.target.value)}
+              value={settings.maxTokens}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                if (!isNaN(val)) updateSetting("maxTokens", val);
+              }}
               className="w-24 h-8 text-xs text-center bg-input border-border"
               type="number"
               min="256"
@@ -441,9 +530,26 @@ function ModelsSettings() {
 }
 
 function PrivacySettings() {
-  const [saveHistory, setSaveHistory] = useState(true);
-  const [analytics, setAnalytics] = useState(false);
-  const [trainingData, setTrainingData] = useState(false);
+  const { settings, updateSetting } = useSettings();
+
+  const handleExport = async () => {
+    try {
+      const data = {
+        settings,
+        exportedAt: new Date().toISOString(),
+      };
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `uncloseai-export-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("[v0] Export failed:", error);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -457,21 +563,27 @@ function PrivacySettings() {
             label="Save conversation history"
             description="Store your chats so you can access them later."
           >
-            <Switch checked={saveHistory} onCheckedChange={setSaveHistory} />
+            <Switch 
+              checked={settings.saveHistory} 
+              onCheckedChange={(value) => updateSetting("saveHistory", value)}
+            />
           </SettingRow>
           <SettingRow
             label="Usage analytics"
             description="Share anonymous usage data to help improve the product."
           >
-            <Switch checked={analytics} onCheckedChange={setAnalytics} />
+            <Switch 
+              checked={settings.analytics} 
+              onCheckedChange={(value) => updateSetting("analytics", value)}
+            />
           </SettingRow>
           <SettingRow
             label="Allow training use"
             description="Let your conversations be used to improve AI models."
           >
             <Switch
-              checked={trainingData}
-              onCheckedChange={setTrainingData}
+              checked={settings.trainingData}
+              onCheckedChange={(value) => updateSetting("trainingData", value)}
             />
           </SettingRow>
         </div>
@@ -487,13 +599,13 @@ function PrivacySettings() {
         <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/20">
           <div>
             <p className="text-sm font-medium text-foreground">
-              Export all conversations
+              Export all settings & data
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Download your complete conversation history as JSON.
+              Download your settings and preferences as JSON.
             </p>
           </div>
-          <Button size="sm" variant="outline" className="text-xs shrink-0">
+          <Button size="sm" variant="outline" className="text-xs shrink-0" onClick={handleExport}>
             Export
             <ChevronRight className="h-3.5 w-3.5 ml-1" />
           </Button>
