@@ -1,14 +1,14 @@
-"use client";
+'use client'
 
-import { useState, useRef, useEffect } from "react";
-import { Message } from "@/lib/api";
-import { cn } from "@/lib/utils";
-import { Copy, Check } from "lucide-react";
+import { useState, useRef, useEffect } from 'react'
+import { Message } from '@/lib/api'
+import { cn } from '@/lib/utils'
+import { Copy, Check } from 'lucide-react'
 
 interface ChatMessagesProps {
-  messages: Message[];
-  streamingContent: string;
-  isStreaming: boolean;
+  messages: Message[]
+  streamingContent: string
+  isStreaming: boolean
 }
 
 export function ChatMessages({
@@ -16,11 +16,11 @@ export function ChatMessages({
   streamingContent,
   isStreaming,
 }: ChatMessagesProps) {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingContent]);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, streamingContent])
 
   if (messages.length === 0 && !isStreaming) {
     return (
@@ -34,89 +34,86 @@ export function ChatMessages({
           </p>
         </div>
       </div>
-    );
+    )
   }
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
+      <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
         {messages.map((message) => (
           <MessageBubble key={message.id} message={message} />
         ))}
 
         {isStreaming && streamingContent && (
-          <div className="space-y-1">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
-              Assistant
-            </p>
-            <div className="text-sm text-foreground leading-relaxed">
-              <MessageContent content={streamingContent} />
+          <div className="flex justify-start">
+            <div className="max-w-[65%] bg-card border border-border rounded-lg px-4 py-3">
+              <div className="text-sm text-foreground leading-relaxed">
+                <MessageContent content={streamingContent} />
+              </div>
             </div>
           </div>
         )}
 
         {isStreaming && !streamingContent && (
-          <div className="space-y-1">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
-              Assistant
-            </p>
-            <div className="flex items-center gap-1.5 py-1">
-              <span className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-pulse" />
-              <span className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-pulse [animation-delay:150ms]" />
-              <span className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-pulse [animation-delay:300ms]" />
+          <div className="flex justify-start">
+            <div className="bg-card border border-border rounded-lg px-4 py-3">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-pulse" />
+                <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-pulse [animation-delay:150ms]" />
+                <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-pulse [animation-delay:300ms]" />
+              </div>
             </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
     </div>
-  );
+  )
 }
 
 function MessageBubble({ message }: { message: Message }) {
-  const isUser = message.role === "user";
+  const isUser = message.role === 'user'
 
   return (
-    <div className="space-y-1">
-      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
-        {isUser ? "You" : "Assistant"}
-      </p>
+    <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          "text-sm leading-relaxed",
-          isUser ? "text-foreground" : "text-foreground/90"
+          'max-w-[65%] rounded-lg px-4 py-3 text-sm leading-relaxed',
+          isUser
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-card text-foreground border border-border'
         )}
       >
         {isUser ? (
           <p className="whitespace-pre-wrap break-words">{message.content}</p>
         ) : (
-          <div className="relative group">
+          <div className="space-y-3">
             <MessageContent content={message.content} />
-            <div className="mt-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center gap-1 opacity-0 hover:opacity-100 transition-opacity">
               <CopyButton text={message.content} />
             </div>
           </div>
         )}
       </div>
     </div>
-  );
+  )
 }
 
 function MessageContent({ content }: { content: string }) {
-  const parts = content.split(/(```[\s\S]*?```)/g);
+  const parts = content.split(/(```[\s\S]*?```)/g)
 
   return (
     <div className="space-y-3">
       {parts.map((part, index) => {
-        if (part.startsWith("```") && part.endsWith("```")) {
-          const lines = part.slice(3, -3).split("\n");
-          const language = lines[0]?.trim() || "";
-          const code = lines.slice(language ? 1 : 0).join("\n");
+        if (part.startsWith('```') && part.endsWith('```')) {
+          const lines = part.slice(3, -3).split('\n')
+          const language = lines[0]?.trim() || ''
+          const code = lines.slice(language ? 1 : 0).join('\n')
           return (
             <div key={index} className="relative group/code">
-              <div className="rounded-lg overflow-hidden border border-border bg-card">
+              <div className="rounded-lg overflow-hidden border border-border bg-secondary">
                 {language && (
-                  <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30">
+                  <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-secondary/50">
                     <span className="text-[11px] font-mono text-muted-foreground">
                       {language}
                     </span>
@@ -130,16 +127,16 @@ function MessageContent({ content }: { content: string }) {
                 </pre>
               </div>
             </div>
-          );
+          )
         }
         return (
           <span key={index} className="whitespace-pre-wrap break-words">
             {part}
           </span>
-        );
+        )
       })}
     </div>
-  );
+  )
 }
 
 function CopyButton({
@@ -147,23 +144,23 @@ function CopyButton({
   label,
   className,
 }: {
-  text: string;
-  label?: string;
-  className?: string;
+  text: string
+  label?: string
+  className?: string
 }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   return (
     <button
       onClick={handleCopy}
       className={cn(
-        "flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors",
+        'flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors',
         className
       )}
     >
@@ -179,5 +176,5 @@ function CopyButton({
         </>
       )}
     </button>
-  );
+  )
 }
