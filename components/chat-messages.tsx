@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { Message } from '@/lib/api'
 import { cn } from '@/lib/utils'
-import { Copy, Check, RefreshCw } from 'lucide-react'
+import { Copy, Check } from 'lucide-react'
+import { HtmlArtifact } from './html-artifact'
 
 interface ChatMessagesProps {
   messages: Message[]
@@ -114,6 +115,15 @@ function MessageContent({ content }: { content: string }) {
           const newline = inner.indexOf('\n')
           const language = newline !== -1 ? inner.slice(0, newline).trim() : ''
           const code = newline !== -1 ? inner.slice(newline + 1) : inner
+
+          // Detect HTML artifacts
+          if (language === 'html' || language === 'html+template') {
+            return (
+              <div key={i} className="my-2">
+                <HtmlArtifact html={code} title={language === 'html' ? 'HTML Component' : 'HTML Template'} />
+              </div>
+            )
+          }
 
           return (
             <div key={i} className="rounded-xl overflow-hidden border border-border">
