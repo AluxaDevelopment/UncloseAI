@@ -1,27 +1,31 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Message } from '@/lib/api'
+import { Message, ToolCall } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Copy, Check } from 'lucide-react'
 import { HtmlArtifact } from './html-artifact'
+import { ToolCallCard } from './tool-call-card'
+import { FilePreview, FileAttachmentList } from './file-attachment'
 
 interface ChatMessagesProps {
   messages: Message[]
   streamingContent: string
   isStreaming: boolean
+  toolCalls?: ToolCall[]
 }
 
 export function ChatMessages({
   messages,
   streamingContent,
   isStreaming,
+  toolCalls = [],
 }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, streamingContent])
+  }, [messages, streamingContent, toolCalls])
 
   if (messages.length === 0 && !isStreaming) {
     return (
@@ -43,6 +47,17 @@ export function ChatMessages({
           <MessageBubble key={message.id} message={message} index={i} />
         ))}
 
+        {/* Tool calls during streaming */}
+        {toolCalls.length > 0 && (
+          <div className="flex justify-start">
+            <div className="max-w-[85%] flex flex-col gap-2">
+              {toolCalls.map((tc, i) => (
+                <ToolCallCard key={i} toolCall={tc} />
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Streaming assistant bubble */}
         {isStreaming && streamingContent && (
           <div className="flex justify-start">
@@ -55,7 +70,7 @@ export function ChatMessages({
         )}
 
         {/* Thinking dots */}
-        {isStreaming && !streamingContent && (
+        {isStreaming && !streamingContent && toolCalls.length === 0 && (
           <div className="flex justify-start">
             <div className="bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3.5">
               <div className="flex items-center gap-1.5">
@@ -75,11 +90,15 @@ export function ChatMessages({
 
 function MessageBubble({ message, index }: { message: Message; index: number }) {
   const isUser = message.role === 'user'
+  const hasAttachments = message.attachments && message.attachments.length > 0
 
   if (isUser) {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[72%]">
+        <div className="max-w-[72%] flex flex-col gap-2 items-end">
+          {hasAttachments && (
+            <FileAttachmentList files={message.attachments!} />
+          )}
           <div className="rounded-2xl rounded-tr-sm bg-primary text-primary-foreground px-4 py-3 text-sm leading-relaxed">
             <p className="whitespace-pre-wrap break-words">{message.content}</p>
           </div>
@@ -88,19 +107,70 @@ function MessageBubble({ message, index }: { message: Message; index: number }) 
     )
   }
 
+  // Check if message contains embedded tool calls (from history)
+  const { content, embeddedToolCalls } = parseMessageForToolCalls(message.content)
+
   return (
     <div className="flex justify-start">
-      <div className="max-w-[72%] group flex flex-col gap-1.5">
-        <div className="rounded-2xl rounded-tl-sm bg-card border border-border px-4 py-3 text-sm text-foreground leading-relaxed">
-          <MessageContent content={message.content} />
-        </div>
+      <div className="max-w-[85%] group flex flex-col gap-2">
+        {/* Embedded tool calls */}
+        {embeddedToolCalls.length > 0 && (
+          <div className="flex flex-col gap-2">
+            {embeddedToolCalls.map((tc, i) => (
+              <ToolCallCard key={i} toolCall={tc} />
+            ))}
+          </div>
+        )}
+
+        {/* Message content */}
+        {content.trim() && (
+          <div className="rounded-2xl rounded-tl-sm bg-card border border-border px-4 py-3 text-sm text-foreground leading-relaxed">
+            <MessageContent content={content} />
+          </div>
+        )}
+
+        {/* Attachments from assistant (sandbox-generated files) */}
+        {hasAttachments && (
+          <div className="flex flex-col gap-2">
+            {message.attachments!.map((file, i) => (
+              <FilePreview key={i} file={file} />
+            ))}
+          </div>
+        )}
+
         {/* Action row under assistant messages */}
-        <div className="flex items-center gap-1 pl-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-          <CopyButton text={message.content} />
-        </div>
+        {content.trim() && (
+          <div className="flex items-center gap-1 pl-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+            <CopyButton text={content} />
+          </div>
+        )}
       </div>
     </div>
   )
+}
+
+// Parse message content for embedded tool call markers
+function parseMessageForToolCalls(content: string): { content: string; embeddedToolCalls: ToolCall[] } {
+  const toolCalls: ToolCall[] = []
+  
+  // Look for tool call JSON blocks: ```tool_call\n{...}\n```
+  const toolCallRegex = /```tool_call\n([\s\S]*?)\n```/g
+  let match
+  let cleanContent = content
+
+  while ((match = toolCallRegex.exec(content)) !== null) {
+    try {
+      const parsed = JSON.parse(match[1])
+      if (parsed.type === 'tool_call' || parsed.tool) {
+        toolCalls.push(parsed as ToolCall)
+      }
+    } catch {
+      // Not valid JSON, skip
+    }
+    cleanContent = cleanContent.replace(match[0], '')
+  }
+
+  return { content: cleanContent.trim(), embeddedToolCalls: toolCalls }
 }
 
 function MessageContent({ content }: { content: string }) {

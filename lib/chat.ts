@@ -1,7 +1,10 @@
+import { ToolCall } from "./api";
+
 const BASE_URL = "https://aibackend-production-5e6b.up.railway.app";
 
 export interface StreamCallbacks {
   onToken: (text: string) => void;
+  onToolCall?: (toolCall: ToolCall) => void;
   onDone: (fullText: string, conversationId?: string) => void;
   onError: (error: Error) => void;
 }
@@ -11,6 +14,9 @@ export interface ChatOptions {
   temperature?: number;
   maxTokens?: number;
   title?: string;
+  enableTools?: boolean;
+  enableCodeExecution?: boolean;
+  fileIds?: string[];
 }
 
 export async function streamChat(
@@ -34,6 +40,9 @@ export async function streamChat(
     temperature = 0.7,
     maxTokens = 2048,
     title,
+    enableTools = true,
+    enableCodeExecution = false,
+    fileIds,
   } = options;
 
   try {
@@ -50,6 +59,9 @@ export async function streamChat(
         temperature,
         max_tokens: maxTokens,
         title,
+        enable_tools: enableTools,
+        enable_code_execution: enableCodeExecution,
+        file_ids: fileIds,
       }),
     });
 
@@ -65,6 +77,7 @@ export async function streamChat(
     const decoder = new TextDecoder();
     let fullResponse = "";
     let buffer = "";
+    let newConversationId: string | undefined;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -78,17 +91,27 @@ export async function streamChat(
         if (line.startsWith("data: ")) {
           const data = line.slice(6);
           if (data === "[DONE]") {
-            callbacks.onDone(fullResponse);
+            callbacks.onDone(fullResponse, newConversationId);
             return;
           }
           try {
             const parsed = JSON.parse(data);
+            
+            // Handle tool call events
+            if (parsed.type === "tool_call" && callbacks.onToolCall) {
+              callbacks.onToolCall(parsed as ToolCall);
+              continue;
+            }
+            
+            // Handle regular content
             if (parsed.content) {
               fullResponse += parsed.content;
               callbacks.onToken(parsed.content);
             }
+            
+            // Capture new conversation ID
             if (parsed.conversation_id && !conversationId) {
-              // New conversation created
+              newConversationId = parsed.conversation_id;
             }
           } catch {
             // ignore malformed chunks
@@ -96,7 +119,7 @@ export async function streamChat(
         }
       }
     }
-    callbacks.onDone(fullResponse);
+    callbacks.onDone(fullResponse, newConversationId);
   } catch (error) {
     callbacks.onError(
       error instanceof Error ? error : new Error("Unknown error")

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { api, Conversation, Message } from "@/lib/api";
+import { api, Conversation, Message, ToolCall } from "@/lib/api";
 import { streamChat } from "@/lib/chat";
 import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
@@ -22,10 +22,13 @@ export function ChatLayout() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [streamingContent, setStreamingContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [model, setModel] = useState<Model>(settings.defaultModel as Model);
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
+  const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
+  const [codeExecutionEnabled, setCodeExecutionEnabled] = useState(false);
 
   useEffect(() => {
     setModel(settings.defaultModel as Model);
@@ -78,6 +81,7 @@ export function ChatLayout() {
     setCurrentConversationId(id);
     setStreamingContent("");
     setIsStreaming(false);
+    setToolCalls([]);
   };
 
   const deriveTitle = (text: string): string => {
@@ -86,7 +90,34 @@ export function ChatLayout() {
     return snippet.length < text.trim().length ? snippet + "…" : snippet;
   };
 
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (content: string, files?: File[]) => {
+    let fileIds: string[] | undefined;
+
+    // Upload files first if any
+    if (files && files.length > 0) {
+      setIsUploading(true);
+      try {
+        // Need a conversation ID to upload files
+        let convId = currentConversationId;
+        if (!convId) {
+          // Create conversation first
+          const newConv = await api.createConversation(deriveTitle(content), model);
+          convId = newConv.id;
+          setCurrentConversationId(convId);
+          await loadConversations();
+        }
+
+        const uploadPromises = files.map((file) => api.uploadFile(file, convId!));
+        const uploadedFiles = await Promise.all(uploadPromises);
+        fileIds = uploadedFiles.map((f) => f.id);
+      } catch (error) {
+        console.error("[v0] File upload error:", error);
+        setIsUploading(false);
+        return;
+      }
+      setIsUploading(false);
+    }
+
     const tempUserMessage: Message = {
       id: `temp-${Date.now()}`,
       conversation_id: currentConversationId || "",
@@ -98,6 +129,7 @@ export function ChatLayout() {
     };
     setMessages((prev) => [...prev, tempUserMessage]);
     setStreamingContent("");
+    setToolCalls([]);
     setIsStreaming(true);
 
     const controller = new AbortController();
@@ -109,6 +141,9 @@ export function ChatLayout() {
       {
         onToken: (token) => {
           setStreamingContent((prev) => prev + token);
+        },
+        onToolCall: (tc) => {
+          setToolCalls((prev) => [...prev, tc]);
         },
         onDone: async (fullText) => {
           setIsStreaming(false);
@@ -124,16 +159,16 @@ export function ChatLayout() {
           };
           setMessages((prev) => [...prev, assistantMessage]);
           setStreamingContent("");
+          setToolCalls([]);
+
           const convs = await api.listConversations();
           setConversations(convs);
 
           if (!currentConversationId) {
-            // Select the newly created conversation
             if (convs.length > 0) {
               setCurrentConversationId(convs[0].id);
             }
           } else {
-            // If the existing conversation still had the generic title, rename it
             const existing = convs.find((c) => c.id === currentConversationId);
             if (
               existing &&
@@ -155,6 +190,7 @@ export function ChatLayout() {
           console.error("[v0] Chat error:", error);
           setIsStreaming(false);
           setAbortController(null);
+          setToolCalls([]);
           setMessages((prev) => prev.filter((m) => m.id !== tempUserMessage.id));
         },
       },
@@ -163,6 +199,8 @@ export function ChatLayout() {
         temperature: settings.temperature,
         maxTokens: settings.maxTokens,
         title: !currentConversationId ? deriveTitle(content) : undefined,
+        enableCodeExecution: codeExecutionEnabled,
+        fileIds,
       }
     );
   };
@@ -201,13 +239,28 @@ export function ChatLayout() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="flex items-center justify-between px-5 h-12 border-b border-border shrink-0 bg-background/80 backdrop-blur-sm">
-          <ModelSelector value={model} onChange={setModel} />
+          <div className="flex items-center gap-3">
+            <ModelSelector value={model} onChange={setModel} />
+            
+            {/* Code execution toggle */}
+            <button
+              onClick={() => setCodeExecutionEnabled(!codeExecutionEnabled)}
+              className={`text-[11px] font-medium px-2.5 py-1 rounded-lg transition-colors ${
+                codeExecutionEnabled
+                  ? "bg-green-500/10 text-green-500 border border-green-500/30"
+                  : "bg-secondary text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {codeExecutionEnabled ? "Sandbox On" : "Sandbox Off"}
+            </button>
+          </div>
+          
           {currentTitle && (
             <p className="text-[13px] text-muted-foreground truncate max-w-xs font-medium">
               {currentTitle}
             </p>
           )}
-          <div className="w-24" /> {/* balance the model selector width */}
+          <div className="w-32" />
         </header>
 
         {/* Messages */}
@@ -220,6 +273,7 @@ export function ChatLayout() {
             messages={messages}
             streamingContent={streamingContent}
             isStreaming={isStreaming}
+            toolCalls={toolCalls}
           />
         )}
 
@@ -228,6 +282,7 @@ export function ChatLayout() {
           onSend={handleSendMessage}
           onStop={handleStop}
           isLoading={isStreaming}
+          isUploading={isUploading}
         />
       </div>
     </div>

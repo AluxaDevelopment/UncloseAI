@@ -27,6 +27,42 @@ export interface Message {
   content: string;
   model: string | null;
   created_at: string;
+  attachments?: FileAttachment[];
+}
+
+export interface FileAttachment {
+  id: string;
+  file_name: string;
+  mime_type: string;
+  file_size_bytes: number;
+  fetch_url: string;
+  source_type: "user_upload" | "sandbox";
+}
+
+export interface ToolCall {
+  type: "tool_call";
+  tool: string;
+  args?: Record<string, unknown>;
+  result: {
+    success: boolean;
+    content?: string;
+    stdout?: string;
+    stderr?: string;
+    exit_code?: number;
+    error?: string;
+    execution_time_ms?: number;
+    artifacts?: string[];
+  };
+}
+
+export interface SandboxResult {
+  success: boolean;
+  stdout: string;
+  stderr: string;
+  exit_code: number;
+  error: string | null;
+  execution_time_ms: number;
+  artifacts: string[];
 }
 
 export interface AuthResponse {
@@ -168,6 +204,77 @@ class ApiClient {
     return this.request<{ message: string }>(`/conversations/${id}`, {
       method: "DELETE",
     });
+  }
+
+  // Files
+  async uploadFile(file: File, conversationId: string): Promise<FileAttachment> {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("conversation_id", conversationId);
+
+    const headers: Record<string, string> = {};
+    if (this.token) {
+      headers["Authorization"] = `Bearer ${this.token}`;
+    }
+
+    const res = await fetch(`${BASE_URL}/files/upload`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Upload failed");
+    }
+
+    return res.json();
+  }
+
+  getFileUrl(filename: string, type: "uploads" | "sandbox" = "uploads"): string {
+    return `${BASE_URL}/files/${type}/${filename}`;
+  }
+
+  // Sandbox
+  async executeSandbox(
+    conversationId: string,
+    code: string,
+    language: "python" | "javascript" | "bash" | "html" | "react" = "python",
+    timeout = 60
+  ): Promise<SandboxResult> {
+    return this.request<SandboxResult>("/sandbox/execute", {
+      method: "POST",
+      body: JSON.stringify({
+        conversation_id: conversationId,
+        code,
+        language,
+        timeout,
+      }),
+    });
+  }
+
+  async installPackages(
+    conversationId: string,
+    type: "pip" | "npm",
+    packages: string[],
+    timeout = 120
+  ) {
+    return this.request<{ success: boolean; output: string; error: string | null }>(
+      "/sandbox/install",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          conversation_id: conversationId,
+          type,
+          packages,
+          timeout,
+        }),
+      }
+    );
+  }
+
+  getSandboxArtifactUrl(conversationId: string, path: string): string {
+    return `${BASE_URL}/sandbox/artifacts/${conversationId}/${path}`;
   }
 }
 
