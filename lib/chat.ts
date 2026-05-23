@@ -1,6 +1,6 @@
 import { ToolCall } from "./api";
 
-const BASE_URL = "https://aibackend-production-5e6b.up.railway.app";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export interface StreamCallbacks {
   onToken: (text: string) => void;
