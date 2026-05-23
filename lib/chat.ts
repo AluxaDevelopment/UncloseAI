@@ -1,10 +1,12 @@
-import { ToolCall } from "./api";
+import { ToolCall, FileAttachment } from "./api";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export interface StreamCallbacks {
   onToken: (text: string) => void;
   onToolCall?: (toolCall: ToolCall) => void;
+  /** Called when a batch of tool calls finishes executing on the backend. */
+  onFinal?: (finalEvent: { tool_calls: ToolCall[]; content?: string }) => void;
   onDone: (fullText: string, conversationId?: string) => void;
   onError: (error: Error) => void;
 }
@@ -26,7 +28,6 @@ export async function streamChat(
   options: ChatOptions = {},
   signal?: AbortSignal
 ) {
-
   const token =
     typeof window !== "undefined"
       ? localStorage.getItem("access_token")
@@ -68,7 +69,6 @@ export async function streamChat(
       }),
     });
 
-
     console.log("[v0] Chat response status:", response.status, response.ok);
 
     if (!response.ok) {
@@ -84,6 +84,7 @@ export async function streamChat(
     const decoder = new TextDecoder();
     let fullResponse = "";
     let buffer = "";
+    let lastToolCall: ToolCall | null = null;
     let newConversationId: string | undefined;
 
     while (true) {
@@ -110,24 +111,47 @@ export async function streamChat(
           try {
             const parsed = JSON.parse(data);
             console.log("[v0] Parsed JSON:", parsed);
-            
-            // Handle tool call events
-            if (parsed.type === "tool_call" && callbacks.onToolCall) {
-              console.log("[v0] Tool call received:", parsed.tool);
-              callbacks.onToolCall(parsed as ToolCall);
+
+            // --- FIX 1: Handle tool_call events properly ---
+            if (parsed.type === "tool_call") {
+              if (callbacks.onToolCall) {
+                callbacks.onToolCall(parsed as ToolCall);
+              }
+              // Track the most recent tool_call so we can match it with the final event
+              lastToolCall = parsed as ToolCall;
               continue;
             }
-            
+
+            // --- FIX 2: Handle final event (tool call results summary) ---
+            if (parsed.type === "final") {
+              if (callbacks.onFinal) {
+                callbacks.onFinal({
+                  tool_calls: (parsed.tool_calls || []) as ToolCall[],
+                  content: parsed.content ?? undefined,
+                });
+              }
+              // If the final event carries content, append it
+              if (parsed.content) {
+                fullResponse += parsed.content;
+                callbacks.onToken(parsed.content);
+              }
+              continue;
+            }
+
             // Handle regular content
             if (parsed.content) {
               fullResponse += parsed.content;
               callbacks.onToken(parsed.content);
             }
-            
-            // Capture new conversation ID
-            if (parsed.conversation_id && !conversationId) {
-              console.log("[v0] New conversation ID from stream:", parsed.conversation_id);
+
+            // --- FIX 3: Always capture conversation_id when sent ---
+            if (parsed.conversation_id) {
+              // Always update so that even existing conversations
+              // get the authoritative server-side ID.
               newConversationId = parsed.conversation_id;
+              if (!conversationId) {
+                console.log("[v0] New conversation ID from stream:", parsed.conversation_id);
+              }
             }
           } catch {
             console.log("[v0] Failed to parse JSON from:", data);
